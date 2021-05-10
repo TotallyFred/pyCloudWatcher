@@ -188,6 +188,7 @@ class CloudWatcher:
             if status_tracker is not None:
                 status_tracker(c_count, indexf, indexl, unknown_count)
 
+
         # restore RS-232 parameters
         self.serial.baudrate = baudrate
         self.serial.timeout = timeout
