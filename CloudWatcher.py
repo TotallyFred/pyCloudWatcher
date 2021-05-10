@@ -186,7 +186,7 @@ class CloudWatcher:
                 unknown_count += 1
 
             if status_tracker is not None:
-                status_tracker(c_count, indexf, indexl, unknown_count)
+                status_tracker(c_count, indexf, indexl, firmware_len, unknown_count)
 
         # restore RS-232 parameters
         self.serial.baudrate = baudrate
