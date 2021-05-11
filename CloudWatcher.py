@@ -4,14 +4,14 @@ import time
 
 
 def update_progress_tracker(c_count, ff, fl, firmware_len, unknown_count, complete=False):
-    if complete:
-        print("\nDone")
-        return
-
     print(
         f"c:{c_count} {ff+fl}/{firmware_len} ({ff}/{fl}) Unknown:{unknown_count}",
         end="\r",
     )
+
+    if complete:
+        print("\nDone")
+        return
 
 
 class CloudWatcherException(Exception):
@@ -159,7 +159,7 @@ class CloudWatcher:
         indexl = -1
         c_count = 0
         unknown_count = 0
-        while indexf < half_len and indexl < half_len:
+        while indexf < half_len or indexl < half_len:
             msg = self.serial.read(1)
             if msg == b"":
                 # Timeout... end transfer
@@ -170,6 +170,7 @@ class CloudWatcher:
             elif msg == b"0":
                 if indexf == -1:
                     l = int(half_len / 256)
+                    print(f"\nflen: {l}")
                     self.serial.write(chr(l).encode())
                 else:
                     self.serial.write(buff[indexf])
@@ -177,9 +178,10 @@ class CloudWatcher:
             elif msg == b"1":
                 if indexl == -1:
                     l = int(half_len % 256)
-                    self.serial.write(chr(int(l)).encode())
+                    print(f"\nllen: {l}")
+                    self.serial.write(chr(l).encode())
                 else:
-                    self.serial.write(buff[indexl])
+                    self.serial.write(bufl[indexl])
                 indexl += 1
             else:
                 # Unknown message from CW. Should we abort ? Just count in case.
