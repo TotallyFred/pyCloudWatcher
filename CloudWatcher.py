@@ -126,6 +126,7 @@ class CloudWatcher:
         time.sleep(0.2)
         self.serial.write(b"T!")
         time.sleep(0.2)
+        
         serial = self.__extract_string(self.__read_response(1)[0], b"!V")
         return serial
 
@@ -159,14 +160,16 @@ class CloudWatcher:
         indexl = -1
         c_count = 0
         unknown_count = 0
-        while indexf < half_len or indexl < half_len:
+        while indexf!=half_len or indexl!=half_len:
             msg = self.serial.read(1)
             if msg == b"":
-                # Timeout... end transfer
+                # Timeout. End transfer
                 break
             elif msg == b"c":
                 c_count += 1
-                self.serial.write(b"d")
+                if indexf < half_len and indexl < half_len:
+                    self.serial.write(b"d")
+
             elif msg == b"0":
                 if indexf == -1:
                     l = int(half_len / 256)
@@ -184,19 +187,22 @@ class CloudWatcher:
                     self.serial.write(bufl[indexl])
                 indexl += 1
             else:
-                # Unknown message from CW. Should we abort ? Just count in case.
+                # Unknown message from CW. Should we abort ? Count just in case.
                 unknown_count += 1
 
-            if status_tracker is not None:
+            if status_tracker is not None and indexf % 50 == 0:
                 status_tracker(c_count, indexf, indexl, firmware_len, unknown_count)
+        
+        # Tell the progress tracker we're done
+        if status_tracker is not None:
+            status_tracker(c_count, indexf, indexl, firmware_len, unknown_count, True)
+
+        self.reboot()
 
         # restore RS-232 parameters
         self.serial.baudrate = baudrate
         self.serial.timeout = timeout
 
-        # Tell the progress tracker we're done
-        if status_tracker is not None:
-            status_tracker(c_count, indexf, indexl, firmware_len, unknown_count, True)
 
     def get_values(self) -> Dict[str, int]:
         """
