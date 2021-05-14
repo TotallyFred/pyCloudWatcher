@@ -1,0 +1,7 @@
+README.md
+setup.py
+cloudwatcher/cloudwatcher.py
+pyCloudWatcher.egg-info/PKG-INFO
+pyCloudWatcher.egg-info/SOURCES.txt
+pyCloudWatcher.egg-info/dependency_links.txt
+pyCloudWatcher.egg-info/top_level.txt
