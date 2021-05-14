@@ -1,11 +1,11 @@
-all: distribution
+all: distribution install
 
 distribution: setup.py
 	python setup.py check
 	python setup.py sdist
 
-install:
+install: pyCloudWatcher-1.0.0.tar.gz
 	pip install .
 
 clean:
-	pip uninstall pyCloudWatcher
+	pip uninstall --yes pyCloudWatcher
