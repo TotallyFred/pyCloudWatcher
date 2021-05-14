@@ -50,7 +50,7 @@ def main():
     if parser.reboot_first:
         print(f"Current version: {cw.reboot()}")
     cw.update(args.firmware.read())
-
+    print(f"Upgraded to version {cw.get_version()}")
 
 if __name__ == "__main__":
     main()
