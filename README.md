@@ -11,4 +11,4 @@ https://lunaticoastro.com/aag-cloud-watcher/moreinfo/
 
 Particularly, the protocol description is in the section called "Information for developers / integrators" (bottom right corner).
 
-I can only recommend LunaticoAstro. Their staff is super friendly and responsive.
+I can only recommend LunaticoAstro. Their staff is super friendly and responsive; even for technical questions around the CloudWatcher protocol. I will likely purchase their Pocket CW as it support the same API as the stationary CloudWatcher. If you happen to have a PocketCW to test with, please report feedback.
