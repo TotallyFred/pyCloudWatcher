@@ -6,7 +6,7 @@ distribution: setup.py cloudwatcher/*
 	python setup.py bdist_wheel --universal
 
 install:
-	pip install .
+	pip3 install .
 
 clean:
-	pip uninstall --yes cloudwatcher
+	pip3 uninstall --yes cloudwatcher
