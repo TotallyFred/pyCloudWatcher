@@ -11,3 +11,4 @@ https://lunaticoastro.com/aag-cloud-watcher/moreinfo/
 
 Particularly, the protocol description is in the section called "Information for developers / integrators" (bottom right corner).
 
+I can only recommend LunaticoAstro. Their staff is super friendly and responsive.
