@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import CloudWatcher
+import cloudwatcher
 import time
-cw = CloudWatcher.CloudWatcher("/dev/ttyUSB0")
+cw = cloudwatcher.CloudWatcher("/dev/ttyUSB0")
 
 #print(f"Rebooting.")
 #v = cw.reboot()
