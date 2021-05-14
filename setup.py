@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(
-    name='pyCloudWatcher',
+    name='cloudwatcher',
     version='1.0.0',    
     description='CloudWatcher API native python bindings',
     url='https://github.com/TotallyFred/pyCloudWatcher',

@@ -11,4 +11,4 @@ install:
 	pip install .
 
 clean:
-	pip uninstall --yes pyCloudWatcher
+	pip uninstall --yes cloudwatcher
