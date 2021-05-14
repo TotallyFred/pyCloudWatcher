@@ -91,18 +91,33 @@ class CloudWatcher:
         )
 
     def get_internal_name(self) -> str:
+        """
+        Reads the name of the CloudWatcher unit.
+
+        :return: A string containing the name of the CloudWatcher unit. Typically, it would be always "CloudWatcher"
+        """
         self.serial.write(b"A!")
         internal_name = self.__extract_string(self.__read_response(1)[0], b"!N")
 
         return internal_name
 
     def get_version(self) -> str:
+        """
+        Reads the version number of the CloudWatcher unit.
+
+        :return: A string containing the version number of the CloudWatcher unit
+        """
         self.serial.write(b"B!")
         serial = self.__extract_string(self.__read_response(1)[0], b"!V")
 
         return serial
 
     def get_serial(self) -> str:
+        """
+        Reads the serial number of the CloudWatcher unit.
+
+        :return: A string containing the serial number of the CloudWatcher unit
+        """
         self.serial.write(b"K!")
         version = self.__extract_string(self.__read_response(1)[0], b"!K")
 
@@ -111,6 +126,8 @@ class CloudWatcher:
     def reset(self) -> None:
         """
         Reset the rx/tx buffers.
+
+        :returns: nothing
         """
 
         self.serial.write(b"z!")
@@ -207,7 +224,7 @@ class CloudWatcher:
 
     def get_values(self) -> Dict[str, int]:
         """
-        Get the zener voltage, light detector voltage and rain sensor temperature.
+        Reads the zener voltage, light detector voltage and rain sensor temperature.
         Only 3 values as per Part 2 (Addendum)
 
         returns: a dictionary containing the raw reading zener_voltage, ldr_voltage, rain_sensor_temp
@@ -225,6 +242,11 @@ class CloudWatcher:
         }
 
     def get_internal_errors(self) -> Dict[str, int]:
+        """
+        Reads the internal error status
+
+        :returns: a dictionary containing 4 keys: first_address_byte_errors, command_byte_erross, second_address_byte_errors and PEC_byte_errors
+        """
         self.serial.write(b"D!")
         values = self.__read_response(4)
         first_address_byte_errors = self.__extract_int(values[0], b"!E1")
