@@ -3,9 +3,16 @@ import serial
 import time
 
 
-def update_progress_tracker(c_count, ff, fl, firmware_len, unknown_count, complete=False):
+def _default_progress_tracker(
+    c_count,
+    low_part_progress,
+    high_part_progress,
+    firmware_len,
+    unknown_count,
+    complete=False,
+):
     print(
-        f"c:{c_count} {ff+fl}/{firmware_len} ({ff}/{fl}) Unknown:{unknown_count}",
+        f"c:{c_count} {low_part_progress+high_part_progress}/{firmware_len} ({low_part_progress}/{high_part_progress}) Unknown:{unknown_count}",
         end="\r",
     )
 
@@ -76,12 +83,11 @@ class CloudWatcher:
         self.serial = serial.Serial(
             port=port,
             baudrate=9600,
-            parity=serial.PARITY_ODD,
+            parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
             bytesize=serial.EIGHTBITS,
             xonxoff=False,
             timeout=2,
-            inter_byte_timeout=2,
         )
 
     def get_internal_name(self) -> str:
@@ -126,15 +132,19 @@ class CloudWatcher:
         time.sleep(0.2)
         self.serial.write(b"T!")
         time.sleep(0.2)
-        
+
         serial = self.__extract_string(self.__read_response(1)[0], b"!V")
         return serial
 
-    def update(self, firmware: Union[bytes, str], status_tracker=update_progress_tracker) -> None:
+    def update(
+        self, firmware: Union[bytes, str], status_tracker=_default_progress_tracker
+    ) -> None:
         """
-        Upgrades the cloudwatcher with the firmware passed as bytes or as a filename when passed as string.
+        Upgrade CloudWatcher with the firmware (passed as bytes) or the file (filename when passed as string.
+        Warning: The update code is untested in practice. Only against a simulation. Do not use unless you know what you are doing and how to recover from complicated situations.
 
         :firmware: bytes containing the firmware or string identifying a file containing the firmware
+        :status_tracker: a lambda or function that can display the update progress. Set it to None if you do not need progress feedback and want the update(). Provide your own if you want to display something else than the default.
         :returns: the new firmware version
         """
         if isinstance(firmware, str):
@@ -145,8 +155,12 @@ class CloudWatcher:
         firmware_len = int(len(firmware))
         half_len = int(firmware_len / 2)
 
-        buff = firmware[:half_len]
-        bufl = firmware[half_len:]
+        # split firmware in 2 halves (low and high part) and prepend the firmware length (2 bytes) to the low and high part.
+        len0 = chr(int(half_len / 256)).encode()
+        len1 = chr(int(half_len % 256)).encode()
+        buff = len0 + firmware[:half_len]
+        bufl = len1 + firmware[half_len:]
+        half_len += 1
 
         # save RS-232 parameters
         baudrate = self.serial.baudrate
@@ -154,13 +168,13 @@ class CloudWatcher:
 
         # switch to upgrade mode
         self.serial.baudrate = 57600
-        self.timeout = 20
+        self.timeout = 1
 
-        indexf = -1
-        indexl = -1
+        indexf = 0
+        indexl = 0
         c_count = 0
         unknown_count = 0
-        while indexf!=half_len or indexl!=half_len:
+        while indexf != half_len or indexl != half_len:
             msg = self.serial.read(1)
             if msg == b"":
                 # Timeout. End transfer
@@ -169,22 +183,12 @@ class CloudWatcher:
                 c_count += 1
                 if indexf < half_len and indexl < half_len:
                     self.serial.write(b"d")
-
+                    pass
             elif msg == b"0":
-                if indexf == -1:
-                    l = int(half_len / 256)
-                    print(f"\nflen: {l}")
-                    self.serial.write(chr(l).encode())
-                else:
-                    self.serial.write(buff[indexf])
+                self.serial.write(buff[indexf])
                 indexf += 1
             elif msg == b"1":
-                if indexl == -1:
-                    l = int(half_len % 256)
-                    print(f"\nllen: {l}")
-                    self.serial.write(chr(l).encode())
-                else:
-                    self.serial.write(bufl[indexl])
+                self.serial.write(bufl[indexl])
                 indexl += 1
             else:
                 # Unknown message from CW. Should we abort ? Count just in case.
@@ -192,17 +196,14 @@ class CloudWatcher:
 
             if status_tracker is not None and indexf % 50 == 0:
                 status_tracker(c_count, indexf, indexl, firmware_len, unknown_count)
-        
+
         # Tell the progress tracker we're done
         if status_tracker is not None:
             status_tracker(c_count, indexf, indexl, firmware_len, unknown_count, True)
 
-        self.reboot()
-
         # restore RS-232 parameters
         self.serial.baudrate = baudrate
         self.serial.timeout = timeout
-
 
     def get_values(self) -> Dict[str, int]:
         """
@@ -503,8 +504,10 @@ class CloudWatcher:
         if sensitivity is None or temp_sensor is None:
             sensitivity, temp_sensor = self.get_temperature_sensor()
         if sensitivity == "th":
+            print("th")
             temp = temp_sensor * 175.72 / 65536 - 46.85
         elif sensitivity == "t":
+            print("t")
             temp = temp_sensor * 1.7572 - 46.85
         else:
             raise CloudWatcherException(
