@@ -1,5 +1,5 @@
 """
-pyCloudWatcher.
+cloudwatcher
 
 Native Python bindings for the LunaticoAstro's CloudWatcher weather station API.
 """
