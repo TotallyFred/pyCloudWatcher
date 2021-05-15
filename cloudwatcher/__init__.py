@@ -35,10 +35,6 @@ class CloudWatcherException(Exception):
     pass
 
 
-# class Constants:
-#     ldr_pullup_resistance = 56
-
-
 class CloudWatcher:
     serial: serial.Serial
     errors: int
