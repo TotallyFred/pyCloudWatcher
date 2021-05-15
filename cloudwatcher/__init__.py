@@ -10,7 +10,7 @@ __author__ = 'Frederic Detienne'
 from typing import Dict, Union, Tuple, Optional
 import serial
 import time
-
+import math
 
 def _default_progress_tracker(
     c_count,
@@ -33,6 +33,8 @@ def _default_progress_tracker(
 class CloudWatcherException(Exception):
     pass
 
+# class Constants:
+#     ldr_pullup_resistance = 56
 
 class CloudWatcher:
     serial: serial.Serial
@@ -98,6 +100,8 @@ class CloudWatcher:
             xonxoff=False,
             timeout=2,
         )
+
+        self.constants = self.get_electrical_constants()
 
     def get_internal_name(self) -> str:
         """
@@ -250,6 +254,24 @@ class CloudWatcher:
             "rain_sensor_temp": rain_sensor_temp,
         }
 
+    def get_ambient_light(self, ldr_voltage: Optional[int] = None) -> float:
+        """
+        Reads or convert the ambient light LDR (Light Dependent Resistor) value.
+
+        If the LDR voltage is given, the value is converted using the internal LDR pull up resistance.
+        If the LDR voltage is not given, the LDR voltage is fetched from the unit and converted into an LDR resistance.
+
+        :ldr_voltage: the LDR voltage. If None, the value is fetched from the CloudWatcher
+        :returns: a float that represents the LDR resistance and reflects ambient light.
+        """
+        if ldr_voltage is None:
+            ldr_voltage = self.get_values()["ldr_voltage"]
+
+        if ldr_voltage > 1022 or ldr_voltage < 1:
+            return float(ldr_voltage)
+        
+        return self.constants["ldr_pull_up_resistance"] / ((1023 / ldr_voltage) - 1) 
+        
     def get_internal_errors(self) -> Dict[str, int]:
         """
         Reads the internal error status
@@ -283,7 +305,7 @@ class CloudWatcher:
 
     def get_switch_status(self) -> bool:
         """
-        Checks relay switch status.
+        Reads the relay switch status.
 
         returns: True if open, False if closed
         """
@@ -308,7 +330,7 @@ class CloudWatcher:
 
     def get_switch_open(self) -> bool:
         """
-        Checks relay switch status.
+        Reads the relay switch open status.
 
         returns: True if open, False if closed
         """
@@ -319,7 +341,7 @@ class CloudWatcher:
 
     def get_switch_close(self) -> bool:
         """
-        Checks relay switch status.
+        Checks relay switch closed status.
 
         returns: True if closed, False if opened
         """
@@ -328,9 +350,9 @@ class CloudWatcher:
 
         return switch_open == "Switch Close"
 
-    def pwm(self, pwm: Union[int, None] = None) -> int:
+    def rain_sensor_pwm(self, pwm: Union[int, None] = None) -> int:
         """
-        Returns or sets the PWM value for the capacitive rain sensor heater.
+        Reads or sets the PWM value for the capacitive rain sensor heater.
 
         :pwm: if provided (0<pwm<1024), sets the CW pwm to the requested value. If None, reads the current pwm value from the CW.
         :returns: the value of the PWM sensor as set or read
@@ -366,6 +388,14 @@ class CloudWatcher:
         ir_sensor_temp = self.__extract_int(self.__read_response(1)[0], b"!2")
 
         return ir_sensor_temp
+    
+    def get_ir_sensor_ambient_temp(self, ir_sensor_temp: Optional[int] = None) -> float:
+
+
+        if ir_sensor_temp is None:
+            ir_sensor_temp = self.get_ir_sensor_temp()
+
+        return ir_sensor_temp / 100
 
     def get_electrical_constants(self) -> Dict[str, int]:
         """
@@ -535,10 +565,8 @@ class CloudWatcher:
         if sensitivity is None or temp_sensor is None:
             sensitivity, temp_sensor = self.get_temperature_sensor()
         if sensitivity == "th":
-            print("th")
             temp = temp_sensor * 175.72 / 65536 - 46.85
         elif sensitivity == "t":
-            print("t")
             temp = temp_sensor * 1.7572 - 46.85
         else:
             raise CloudWatcherException(
