@@ -235,12 +235,12 @@ class CloudWatcher:
         self.serial.baudrate = baudrate
         self.serial.timeout = timeout
 
-    def get_values(self) -> Dict[str, int]:
+    def get_analog_values(self) -> Dict[str, int]:
         """
-        Reads the zener voltage, light detector voltage and rain sensor temperature.
+        Reads the zener voltage, light detector voltage and rain sensor temperature DACs.
         Only 3 values as per Part 2 (Addendum)
 
-        returns: a dictionary containing the raw reading zener_voltage, ldr_voltage, rain_sensor_temp
+        returns: a dictionary containing the raw reading zener_voltage, ldr_voltage, rain_sensor_temp. All values are in integer in [0,1023]
         """
         self.serial.write(b"C!")
         values = self.__read_response(3)
@@ -268,7 +268,7 @@ class CloudWatcher:
         absolute_zero = 273.15 
 
         if rain_sensor_temp is None:
-            rain_sensor_temp = self.get_values()["rain_sensor_temp"]
+            rain_sensor_temp = self.get_analog_values()["rain_sensor_temp"]
 
         if rain_sensor_temp < 1:
             rain_sensor_temp = 1
@@ -291,7 +291,7 @@ class CloudWatcher:
         :returns: a float that represents the LDR resistance and reflects ambient light.
         """
         if ldr_voltage is None:
-            ldr_voltage = self.get_values()["ldr_voltage"]
+            ldr_voltage = self.get_analog_values()["ldr_voltage"]
 
         if ldr_voltage > 1022:
             ldr_voltage = 1022
