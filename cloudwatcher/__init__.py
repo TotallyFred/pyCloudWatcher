@@ -254,6 +254,32 @@ class CloudWatcher:
             "rain_sensor_temp": rain_sensor_temp,
         }
 
+    def get_capacitive_rain_sensor_temp(self, rain_sensor_temp: Optional[int] = None) -> float:
+        """
+        Reads or convert the capacitive rain sensor temperature analog output (0-1023) into degrees Celsius.
+        If the analog value is provided, it is converted. If it is None, the sensor value is read from the CloudWatcher.
+
+        :rain_sensor_temp: analog value from the capacitive rain sensor. If None, the value will be read from the sensor.
+        :return: the temperature of the sensor in degrees Celsius
+        """
+        rain_pull_up_resistance = 1
+        rain_resistance_at_25 = 1
+        rain_beta = 3450
+        absolute_zero = 273.15 
+
+        if rain_sensor_temp is None:
+            rain_sensor_temp = self.get_values()["rain_sensor_temp"]
+
+        if rain_sensor_temp < 1:
+            rain_sensor_temp = 1
+        elif rain_sensor_temp > 1022:
+            rain_sensor_temp = 1022
+
+        r = rain_pull_up_resistance / ((1023 / rain_sensor_temp) - 1)
+        r = math.log(r / rain_resistance_at_25)
+
+        return 1 / (r / rain_beta + 1 / (absolute_zero + 25)) - absolute_zero
+
     def get_ambient_light(self, ldr_voltage: Optional[int] = None) -> float:
         """
         Reads or convert the ambient light LDR (Light Dependent Resistor) value.
@@ -267,10 +293,27 @@ class CloudWatcher:
         if ldr_voltage is None:
             ldr_voltage = self.get_values()["ldr_voltage"]
 
-        if ldr_voltage > 1022 or ldr_voltage < 1:
-            return float(ldr_voltage)
+        if ldr_voltage > 1022:
+            ldr_voltage = 1022
+        if ldr_voltage < 1:
+            ldr_voltage = 1
         
-        return self.constants["ldr_pull_up_resistance"] / ((1023 / ldr_voltage) - 1) 
+        return self.constants["ldr_pull_up_resistance"] / ((1023 / ldr_voltage) - 1)
+
+    def get_relative_ambient_light(self, ldr_voltage: Optional[int] = None) -> float:
+        """
+        Reads or convert the ambient light LDR (Light Dependent Resistor) value to a percentage.
+        get_ambient_light() returns a resistance value that is only really meaningful if the max LDR resistance is known.
+
+        This method returns the ambient light as a float between 0 and 1 that represents the ratio of the LDR value to its max value
+
+        If the LDR voltage is given, the value is converted using the internal LDR pull up resistance.
+        If the LDR voltage is not given, the LDR voltage is fetched from the unit and converted into an LDR resistance.
+
+        :ldr_voltage: the LDR voltage. If None, the value is fetched from the CloudWatcher
+        :returns: a float in [0,1] that represents the LDR resistance ratio to its maximum value and reflects ambient light. 0: very dark; 1: very bright
+        """
+        return 1 - self.get_ambient_light() / self.constants["ldr_max_resistance"]
         
     def get_internal_errors(self) -> Dict[str, int]:
         """
@@ -350,7 +393,7 @@ class CloudWatcher:
 
         return switch_open == "Switch Close"
 
-    def rain_sensor_pwm(self, pwm: Union[int, None] = None) -> int:
+    def rain_sensor_heater_pwm(self, pwm: Union[int, None] = None) -> int:
         """
         Reads or sets the PWM value for the capacitive rain sensor heater.
 
