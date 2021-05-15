@@ -149,7 +149,7 @@ class CloudWatcher:
         self.serial.write(b"z!")
         self.__read_response(0)
 
-    def reboot(self) -> None:
+    def reboot(self) -> str:
         """
         Reboot the whole system and allow firmware upgrade.
         From Part 4 (Appendix/Erratum)
