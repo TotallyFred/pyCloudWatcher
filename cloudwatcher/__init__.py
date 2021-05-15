@@ -289,7 +289,7 @@ class CloudWatcher:
         If the LDR voltage is not given, the LDR voltage is fetched from the unit and converted into an LDR resistance.
 
         :ldr_voltage: the LDR voltage. If None, the value is fetched from the CloudWatcher
-        :returns: a float that represents the LDR resistance and reflects ambient light.
+        :returns: a float that represents the LDR resistance in ohms.
         """
         if ldr_voltage is None:
             ldr_voltage = self.get_analog_values()["ldr_voltage"]
