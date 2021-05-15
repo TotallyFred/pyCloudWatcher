@@ -314,7 +314,7 @@ class CloudWatcher:
         :ldr_voltage: the LDR voltage. If None, the value is fetched from the CloudWatcher
         :returns: a float in [0,1] that represents the LDR resistance ratio to its maximum value and reflects ambient light. 0: very dark; 1: very bright
         """
-        return 1 - self.get_ambient_light() / self.constants["ldr_max_resistance"]
+        return round(1 - self.get_ambient_light() / self.constants["ldr_max_resistance"], 2)
 
     def get_internal_errors(self) -> Dict[str, int]:
         """
@@ -411,16 +411,16 @@ class CloudWatcher:
         pwm = self.__extract_int(values[0], b"!Q")
         return pwm
 
-    def get_sky_ir_temp(self) -> int:
+    def get_sky_ir_temperature(self) -> float:
         """
-        Return the infrared sensor value.
+        Reads and return the sky IR (infrared) temperature in Celsius.
 
-        returns: temperature
+        returns: IR sky temperature in Celsius
         """
         self.serial.write(b"S!")
-        ir_temp = self.__extract_int(self.__read_response(1)[0], b"!1")
+        sky_ir_temp = self.__extract_int(self.__read_response(1)[0], b"!1")
 
-        return ir_temp
+        return round(sky_ir_temp / 100, 2)
 
     def get_ir_sensor_temperature(self) -> float:
         """
@@ -431,7 +431,7 @@ class CloudWatcher:
         self.serial.write(b"T!")
         ir_sensor_temp = self.__extract_int(self.__read_response(1)[0], b"!2")
 
-        return ir_sensor_temp / 100
+        return round(ir_sensor_temp / 100, 2)
 
     def get_electrical_constants(self) -> Dict[str, int]:
         """
@@ -503,7 +503,7 @@ class CloudWatcher:
         else:
             wind_speed = wind_sensor
 
-        return wind_speed
+        return round(wind_speed, 2)
 
     def get_rel_humidity_sensor(self) -> Tuple[str, int]:
         """
