@@ -5,12 +5,13 @@ Native Python bindings for the LunaticoAstro's CloudWatcher weather station API.
 """
 
 __version__ = "1.0.0"
-__author__ = 'Frederic Detienne'
+__author__ = "Frederic Detienne"
 
 from typing import Dict, Union, Tuple, Optional
 import serial
 import time
 import math
+
 
 def _default_progress_tracker(
     c_count,
@@ -33,8 +34,10 @@ def _default_progress_tracker(
 class CloudWatcherException(Exception):
     pass
 
+
 # class Constants:
 #     ldr_pullup_resistance = 56
+
 
 class CloudWatcher:
     serial: serial.Serial
@@ -254,7 +257,9 @@ class CloudWatcher:
             "rain_sensor_temp": rain_sensor_temp,
         }
 
-    def get_capacitive_rain_sensor_temp(self, rain_sensor_temp: Optional[int] = None) -> float:
+    def get_capacitive_rain_sensor_temp(
+        self, rain_sensor_temp: Optional[int] = None
+    ) -> float:
         """
         Reads or convert the capacitive rain sensor temperature analog output (0-1023) into degrees Celsius.
         If the analog value is provided, it is converted. If it is None, the sensor value is read from the CloudWatcher.
@@ -265,7 +270,7 @@ class CloudWatcher:
         rain_pull_up_resistance = 1
         rain_resistance_at_25 = 1
         rain_beta = 3450
-        absolute_zero = 273.15 
+        absolute_zero = 273.15
 
         if rain_sensor_temp is None:
             rain_sensor_temp = self.get_analog_values()["rain_sensor_temp"]
@@ -297,7 +302,7 @@ class CloudWatcher:
             ldr_voltage = 1022
         if ldr_voltage < 1:
             ldr_voltage = 1
-        
+
         return self.constants["ldr_pull_up_resistance"] / ((1023 / ldr_voltage) - 1)
 
     def get_relative_ambient_light(self, ldr_voltage: Optional[int] = None) -> float:
@@ -314,7 +319,7 @@ class CloudWatcher:
         :returns: a float in [0,1] that represents the LDR resistance ratio to its maximum value and reflects ambient light. 0: very dark; 1: very bright
         """
         return 1 - self.get_ambient_light() / self.constants["ldr_max_resistance"]
-        
+
     def get_internal_errors(self) -> Dict[str, int]:
         """
         Reads the internal error status
@@ -421,22 +426,14 @@ class CloudWatcher:
 
         return ir_temp
 
-    def get_ir_sensor_temp(self) -> int:
+    def get_ir_sensor_temperature(self) -> float:
         """
-        Return the infrared sensor temperature.
+        Return the infrared sensor temperature in Celsius.
 
-        returns: temperature
+        returns: the IR sensor temperature in degrees Celsius
         """
         self.serial.write(b"T!")
         ir_sensor_temp = self.__extract_int(self.__read_response(1)[0], b"!2")
-
-        return ir_sensor_temp
-    
-    def get_ir_sensor_ambient_temp(self, ir_sensor_temp: Optional[int] = None) -> float:
-
-
-        if ir_sensor_temp is None:
-            ir_sensor_temp = self.get_ir_sensor_temp()
 
         return ir_sensor_temp / 100
 

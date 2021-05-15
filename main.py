@@ -17,5 +17,5 @@ while cw.serial.is_open:
     # print(cw.get_temperature())
     # print(cw.get_rel_humidity())
     # print(cw.get_ambient_light())
-    print(cw.get_ir_sensor_temp())
-    print(cw.get_ir_sensor_ambient_temp())
+    print(cw.get_ir_sensor_temperature())
+    print(cw.get_ir_sensor_ambient_temperature())
