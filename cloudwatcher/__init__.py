@@ -14,7 +14,7 @@ import math
 
 
 def _default_progress_tracker(
-    c_count,
+    preamble_count,
     low_part_progress,
     high_part_progress,
     firmware_len,
@@ -24,11 +24,11 @@ def _default_progress_tracker(
 ):
     if upload:
         print(
-            f"c:{c_count} {low_part_progress+high_part_progress}/{firmware_len} ({low_part_progress}/{high_part_progress}) Unknown:{unknown_count}",
+            f"Preamble:{preamble_count} Progress:{low_part_progress+high_part_progress}/{firmware_len} ({low_part_progress}/{high_part_progress}) Unknown:{unknown_count}",
             end="\r",
         )
     else:
-        print(f"c:{c_count}", end="\r")
+        print(f"Preamble:{preamble_count} Unknown:{unknown_count}", end="\r")
 
     if complete:
         print("\nDone")
@@ -140,9 +140,8 @@ class CloudWatcher:
         :return: A string containing the version number of the CloudWatcher unit
         """
         self.serial.write(b"B!")
-        serial = self.__extract_string(self.__read_response(1)[0], b"!V")
-
-        return serial
+        serial_number = self.__extract_string(self.__read_response(1)[0], b"!V")
+        return serial_number
 
     def get_serial(self) -> str:
         """
@@ -182,7 +181,7 @@ class CloudWatcher:
         self.serial.write(b"T!")
         time.sleep(0.2)
 
-        serial = self.__extract_string(self.__read_response(1)[0], b"!V")
+        serial = self.__extract_string(self.__read_response(3)[0], b"!V")
         return serial
 
     def upgrade(
@@ -198,7 +197,7 @@ class CloudWatcher:
 
         def _update_tracker(
             status_tracker,
-            c_count,
+            preamble_count,
             indexf,
             indexl,
             firmware_len,
@@ -208,7 +207,7 @@ class CloudWatcher:
         ):
             if status_tracker is not None:
                 status_tracker(
-                    c_count, indexf, indexl, firmware_len, unknown_count, done, upload
+                    preamble_count, indexf, indexl, firmware_len, unknown_count, done, upload
                 )
 
         if isinstance(firmware, str):
@@ -233,7 +232,7 @@ class CloudWatcher:
 
         indexf = -1
         indexl = -1
-        c_count = 0
+        preamble_count = 0
         unknown_count = 0
 
         # Process upgrade preamble. Wait to have enough "c" chars to consider the preamble valid.
@@ -242,19 +241,20 @@ class CloudWatcher:
         # switch to upgrade mode
         self.serial.baudrate = 57600
         self.timeout = 5
-        while c_count < 10:
+        while preamble_count < 10:
             msg = self.serial.read(1)
             if msg == b"":
                 # Timeout. Abort upgrade
                 raise ValueError("Upgrade failed - timeout before transfer")
-            elif msg == b"c":
-                c_count += 1
+            elif msg == b"c" or msg == b'\xff':
+                # 0xFF may occur after a B!O!O!T! -triggered reboot. Not on power-on. Funny.
+                preamble_count += 1
             else:
                 # Unknown message from CW. Should we abort ? Count just in case.
                 unknown_count += 1
             _update_tracker(
                 status_tracker,
-                c_count,
+                preamble_count,
                 indexf,
                 indexl,
                 firmware_len,
@@ -275,10 +275,9 @@ class CloudWatcher:
             if msg == b"":
                 # Timeout. End transfer
                 raise ValueError("Upgrade failed - timeout during transfer")
-            elif msg == b"c":
-                c_count += 1
-                if c_count > 5 and indexf < half_len and indexl < half_len:
-                    self.serial.write(b"d")
+            elif msg == b"c" or msg == b'\xff':
+                # Absorb excess "c" that may occur after sending "d". 0xFF occur after sending "d" in B!O!O!T! triggered sequences but not on power-on.
+                preamble_count += 1
             elif msg == b"0":
                 if indexf < 0:
                     self.serial.write(lenf)
@@ -297,7 +296,7 @@ class CloudWatcher:
 
             _update_tracker(
                 status_tracker,
-                c_count,
+                preamble_count,
                 indexf,
                 indexl,
                 firmware_len,
@@ -309,7 +308,7 @@ class CloudWatcher:
         # Tell the progress tracker we're done
         _update_tracker(
             status_tracker,
-            c_count,
+            preamble_count,
             indexf,
             indexl,
             firmware_len,

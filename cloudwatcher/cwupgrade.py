@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
+from io import RawIOBase
 import cloudwatcher
-
+import time
 
 def main():
     parser = argparse.ArgumentParser(description="Upgrade CloudWatcher firmware.")
@@ -41,6 +42,9 @@ def main():
 
     try:
         cw.upgrade(args.firmware.read())
+    except ValueError as upgrade_issue:
+        print(f"\n\nUpgrade failed: {upgrade_issue}")
+        exit()
     except:
         print("\n\n")
         raise
