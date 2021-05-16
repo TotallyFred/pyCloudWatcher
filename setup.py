@@ -8,7 +8,7 @@ setup(
     author='Frederic Detienne',
     # author_email='yeah.right@ubet.com',
     license='BSD 2-clause',
-    scripts=['cloudwatcher/cwupgrade.py'],
+    scripts=['cloudwatcher/cwupgrade.py', 'cloudwatcher/cwmqtt.py'],
     packages=['cloudwatcher'],
     install_requires=[],
 
