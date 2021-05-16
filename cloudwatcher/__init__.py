@@ -218,8 +218,7 @@ class CloudWatcher:
         firmware_len = int(len(firmware))
         half_len = int(firmware_len / 2)
 
-        # split firmware in 2 halves (low and high part) and prepend the firmware length (2 bytes) to the low and high part.
-
+        # split firmware in 2 halves (low and high part) and compute the file length (2 bytes).
         lenf = int(half_len / 256).to_bytes(1, "big")
         lenl = int(half_len % 256).to_bytes(1, "big")
 
@@ -235,12 +234,12 @@ class CloudWatcher:
         preamble_count = 0
         unknown_count = 0
 
-        # Process upgrade preamble. Wait to have enough "c" chars to consider the preamble valid.
-        # This helps getting rid of potential garbage in the buffer which could mess up with the protocol
-
-        # switch to upgrade mode
+        # switch serial to upgrade mode
         self.serial.baudrate = 57600
         self.timeout = 5
+
+        # Process upgrade preamble. Wait to have enough "c" chars to consider the preamble valid.
+        # This helps getting rid of potential garbage in the buffer which could mess up with the protocol
         while preamble_count < 10:
             msg = self.serial.read(1)
             if msg == b"":
