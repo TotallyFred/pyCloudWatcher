@@ -32,25 +32,21 @@ def main():
         help="Trigger CloudWatcher reboot before upgrading",
     )
 
-    parser.add_argument(
-        "--yes-I-understand-this-program-is-broken",
-        "-y",
-        action="store_true",
-        default=False,
-        required=False,
-        help="Just don't use this. This program is untested. Really.",
-    )
-
     args = parser.parse_args()
 
-    if not args.yes_I_understand_this_program_is_broken:
-        print("Great idea - don't run this")
-        exit()
     cw = cloudwatcher.CloudWatcher(args.port)
-    if parser.reboot_first:
+    if args.reboot_first:
+        cw.initialize()
         print(f"Current version: {cw.reboot()}")
-    cw.update(args.firmware.read())
+
+    try:
+        cw.upgrade(args.firmware.read())
+    except:
+        print("\n\n")
+        raise
+
     print(f"Upgraded to version {cw.get_version()}")
+
 
 if __name__ == "__main__":
     main()
