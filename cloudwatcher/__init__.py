@@ -421,6 +421,8 @@ class CloudWatcher:
         :rain_sensor_temp: analog value from the capacitive rain sensor. If None, the value will be read from the sensor.
         :return: the temperature of the sensor in degrees Celsius
         """
+        # TODO: these values were hardcoded but now are taken from the CW.
+        # Check which way is the "true" way based on the sensor type (capacitive vs Hydredon)
         # rain_pull_up_resistance = 1
         # rain_res_at_25 = 1
         # rain_beta = 3450
