@@ -11,6 +11,7 @@ from typing import Dict, Union, Tuple, Optional
 import serial
 import time
 import math
+from enum import Enum
 
 
 def _default_progress_tracker(
@@ -39,9 +40,16 @@ class CloudWatcherException(Exception):
     pass
 
 
+class Anemometer(Enum):
+    black = 0
+    gray = 1
+
+
 class CloudWatcher:
     serial: serial.Serial
     errors: int
+    analog_cache: Dict[str, int]
+    constants: Dict[str, float]
 
     def __validate_handshake(self, response: bytes) -> None:
         assert (
@@ -103,6 +111,9 @@ class CloudWatcher:
             xonxoff=False,
             timeout=2,
         )
+        self.constants = {}
+        self.analog_cache = {}
+        self.analog_cache_timestamp = 0
 
     def initialize(self):
         # flush the output buffer
@@ -120,7 +131,7 @@ class CloudWatcher:
 
         # obtain the electrical constants and keep them for furter operations
         # TODO: we should use a caching system for these
-        self.constants = self.get_electrical_constants()
+        self.constants = self.get_constants()
 
     def get_internal_name(self) -> str:
         """
@@ -360,6 +371,46 @@ class CloudWatcher:
             "rain_sensor_temp": rain_sensor_temp,
         }
 
+    def _update_analog_value_cache(self, force: bool = False) -> None:
+        now = time.time()
+
+        if (
+            force
+            or (len(self.analog_cache) == 0)
+            or (self.analog_cache_timestamp - now) > 1000
+        ):
+            self.analog_cache = self.get_analog_values()
+
+    @property
+    def raw_zener_voltage(self) -> int:
+        """
+        Analog to Digital readout of the zener voltage
+
+        :return: an integer in [0,1023]
+        """
+        self._update_analog_value_cache()
+        return self.analog_cache["zener_voltage"]
+
+    @property
+    def raw_ldr_voltage(self) -> int:
+        """
+        Analog to Digital readout of the LDR (Light Dependent Resistor) sensor
+
+        :return: an integer in [0,1023]
+        """
+        self._update_analog_value_cache()
+        return self.analog_cache["ldr_voltage"]
+
+    @property
+    def raw_rain_sensor_temp(self) -> int:
+        """
+        Analog to Digital readout of the rain sensor temperature
+
+        :return: an integer in [0,1023]
+        """
+        self._update_analog_value_cache()
+        return self.analog_cache["rain_sensor_temp"]
+
     def get_capacitive_rain_sensor_temp(
         self, rain_sensor_temp: Optional[int] = None
     ) -> float:
@@ -370,23 +421,23 @@ class CloudWatcher:
         :rain_sensor_temp: analog value from the capacitive rain sensor. If None, the value will be read from the sensor.
         :return: the temperature of the sensor in degrees Celsius
         """
-        rain_pull_up_resistance = 1
-        rain_resistance_at_25 = 1
-        rain_beta = 3450
+        # rain_pull_up_resistance = 1
+        # rain_res_at_25 = 1
+        # rain_beta = 3450
         absolute_zero = 273.15
 
         if rain_sensor_temp is None:
-            rain_sensor_temp = self.get_analog_values()["rain_sensor_temp"]
+            rain_sensor_temp = self.raw_rain_sensor_temp
 
         if rain_sensor_temp < 1:
             rain_sensor_temp = 1
         elif rain_sensor_temp > 1022:
             rain_sensor_temp = 1022
 
-        r = rain_pull_up_resistance / ((1023 / rain_sensor_temp) - 1)
-        r = math.log(r / rain_resistance_at_25)
+        r = self.rain_pull_up_resistance / ((1023 / rain_sensor_temp) - 1)
+        r = math.log(r / self.rain_res_at_25)
 
-        return 1 / (r / rain_beta + 1 / (absolute_zero + 25)) - absolute_zero
+        return 1 / (r / self.rain_beta + 1 / (absolute_zero + 25)) - absolute_zero
 
     def get_ambient_light(self, ldr_voltage: Optional[int] = None) -> float:
         """
@@ -399,14 +450,14 @@ class CloudWatcher:
         :returns: a float that represents the LDR resistance in ohms.
         """
         if ldr_voltage is None:
-            ldr_voltage = self.get_analog_values()["ldr_voltage"]
+            ldr_voltage = self.raw_ldr_voltage
 
         if ldr_voltage > 1022:
             ldr_voltage = 1022
         if ldr_voltage < 1:
             ldr_voltage = 1
 
-        return self.constants["ldr_pull_up_resistance"] / ((1023 / ldr_voltage) - 1)
+        return self.ldr_pull_up_resistance / ((1023 / ldr_voltage) - 1)
 
     def get_relative_ambient_light(self, ldr_voltage: Optional[int] = None) -> float:
         """
@@ -421,9 +472,7 @@ class CloudWatcher:
         :ldr_voltage: the LDR voltage. If None, the value is fetched from the CloudWatcher
         :returns: a float in [0,1] that represents the LDR resistance ratio to its maximum value and reflects ambient light. 0: very dark; 1: very bright
         """
-        return round(
-            1 - self.get_ambient_light() / self.constants["ldr_max_resistance"], 2
-        )
+        return round(1 - self.get_ambient_light() / self.ldr_max_resistance, 2)
 
     def get_internal_errors(self) -> Dict[str, int]:
         """
@@ -542,7 +591,7 @@ class CloudWatcher:
 
         return round(ir_sensor_temp / 100, 2)
 
-    def get_electrical_constants(self) -> Dict[str, int]:
+    def get_constants(self) -> Dict[str, int]:
         """
         Returns electrical constants.
         From Part 2 (addendum)
@@ -570,6 +619,40 @@ class CloudWatcher:
             "rain_pull_up_resistance": rain_pull_up_resistance,
         }
 
+    def _update_constants_cache(self) -> None:
+        if self.constants is None:
+            self.constants = self.get_constants()
+
+    @property
+    def zener_voltage(self) -> float:
+        self._update_constants_cache()
+        return self.constants["zener_voltage"]
+
+    @property
+    def ldr_max_resistance(self) -> float:
+        self._update_constants_cache()
+        return self.constants["ldr_max_resistance"]
+
+    @property
+    def ldr_pull_up_resistance(self) -> float:
+        self._update_constants_cache()
+        return self.constants["ldr_pull_up_resistance"]
+
+    @property
+    def rain_beta(self) -> float:
+        self._update_constants_cache()
+        return self.constants["rain_beta"]
+
+    @property
+    def rain_res_at_25(self) -> float:
+        self._update_constants_cache()
+        return self.constants["rain_res_at_25"]
+
+    @property
+    def rain_pull_up_resistance(self) -> float:
+        self._update_constants_cache()
+        return self.constants["rain_pull_up_resistance"]
+
     def get_wind_sensor_presence(self) -> bool:
         """
         Returns the presence of the wind sensor.
@@ -594,7 +677,7 @@ class CloudWatcher:
 
         return wind_sensor
 
-    def get_wind_speed(self, black_anemometer: bool = True) -> float:
+    def get_wind_speed(self, anemometer_type: Anemometer = Anemometer.black) -> float:
         """
         Returns the wind speed according to the anemometer model.
         From Part 4 (addendum/erratum).
@@ -604,13 +687,15 @@ class CloudWatcher:
         """
         wind_sensor = self.get_wind_sensor()
 
-        if black_anemometer:
+        if anemometer_type == Anemometer.black:
             if wind_sensor > 0:
                 wind_speed = (wind_sensor * 0.84) + 3
             else:
                 wind_speed = 0
-        else:
+        elif anemometer_type == Anemometer.gray:
             wind_speed = wind_sensor
+        else:
+            raise NotImplementedError("Unsupported anemometer type")
 
         return round(wind_speed, 2)
 
