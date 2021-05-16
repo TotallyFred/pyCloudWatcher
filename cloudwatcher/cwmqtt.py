@@ -31,8 +31,8 @@ def connect_mqtt():
 
 def publish(client):
     cw = cloudwatcher.CloudWatcher("/dev/ttyUSB0")
-    cw.initialize()
-    
+    cw.flush_io()
+
     topic = "/CloudWatcher/Home"
 
     while True:

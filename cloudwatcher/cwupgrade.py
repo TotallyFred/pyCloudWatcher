@@ -38,7 +38,7 @@ def main():
 
     cw = cloudwatcher.CloudWatcher(args.port)
     if args.reboot_first:
-        cw.initialize()
+        cw.flush_io()
         print(f"Current version: {cw.reboot()}")
 
     try:

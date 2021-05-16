@@ -50,7 +50,7 @@ class CloudWatcher:
     errors: int
     analog_cache: Dict[str, int]
     analog_cache_lifetime_ms: int
-    analog_cache_timestamp: float # The actual format of a timestamp
+    analog_cache_timestamp: float  # The actual format of a timestamp
     constants: Dict[str, float]
 
     def __validate_handshake(self, response: bytes) -> None:
@@ -118,7 +118,7 @@ class CloudWatcher:
         self.analog_cache_lifetime_ms = cache_lifetime_ms
         self.analog_cache_timestamp = 0
 
-    def initialize(self):
+    def flush_io(self):
         # flush the output buffer
         self.serial.flush()
 
@@ -130,11 +130,7 @@ class CloudWatcher:
             self.serial.timeout = 1
 
         # notify CW to reset its IO buffers
-        self.reset()
-
-        # obtain the electrical constants and keep them for furter operations
-        # TODO: we should use a caching system for these
-        self.constants = self.get_constants()
+        self.reset_io()
 
     def get_internal_name(self) -> str:
         """
@@ -168,7 +164,7 @@ class CloudWatcher:
 
         return version
 
-    def reset(self) -> None:
+    def reset_io(self) -> None:
         """
         Reset the rx/tx buffers.
 
@@ -238,9 +234,10 @@ class CloudWatcher:
         firmware_len = int(len(firmware))
         half_len = int(firmware_len / 2)
 
-        # split firmware in 2 halves (low and high part) and compute the file length (2 bytes).
-        lenf = int(half_len / 256).to_bytes(1, "big")
-        lenl = int(half_len % 256).to_bytes(1, "big")
+        # split firmware in 2 halves (low and high part) and compute the half file length (2 bytes).
+        two_bytes_half_len = half_len.to_bytes(2, "big")
+        lenf = two_bytes_half_len[0].to_bytes(1, "big")
+        lenl = two_bytes_half_len[1].to_bytes(1, "big")
 
         buff = firmware[:half_len]
         bufl = firmware[half_len:]
