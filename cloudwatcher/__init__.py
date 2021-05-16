@@ -417,7 +417,7 @@ class CloudWatcher:
     def _update_analog_value_cache(self, force: bool = False) -> None:
         now = time.time()
 
-        if force or (self.analog_cache_timestamp - now) > self.analog_cache_lifetime_ms:
+        if force or (now - self.analog_cache_timestamp) > self.analog_cache_lifetime_ms:
             self.analog_cache = self.get_analog_values()
 
     @property
@@ -493,6 +493,9 @@ class CloudWatcher:
         if ldr_voltage is None:
             ldr_voltage = self.raw_ldr_voltage
 
+        # TODO: this conversion algorithm is straight from the manual but it seems odd.
+        # It goes "to infinity" as ldr_voltage nears 1023 (hence the clamp, I guess)
+        # Clarify.
         if ldr_voltage > 1022:
             ldr_voltage = 1022
         if ldr_voltage < 1:
@@ -513,9 +516,10 @@ class CloudWatcher:
         :ldr_voltage: the LDR voltage. If None, the value is fetched from the CloudWatcher
         :returns: a float in [0,1] that represents the LDR resistance ratio to its maximum value and reflects ambient light. 0: very dark; 1: very bright
         """
-        return round(
-            1 - self.get_ambient_light(ldr_voltage) / self.ldr_max_resistance, 2
-        )
+        if ldr_voltage is None:
+            ldr_voltage = self.raw_ldr_voltage
+
+        return round(1 - ldr_voltage / 1023, 4)
 
     def get_internal_errors(self) -> Dict[str, int]:
         """
@@ -647,7 +651,7 @@ class CloudWatcher:
             + T67
         )
 
-        return Td
+        return round(Td, 2)
 
     def get_ir_sensor_temperature(self) -> float:
         """

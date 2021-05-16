@@ -37,15 +37,14 @@ def publish(client):
 
     while True:
         cw_update = {}
-        cw_update["sky_ir_temp"] = cw.get_sky_ir_temperature()
-        cw_update["ir_temp"] = cw.get_ir_sensor_temperature()
-        cw_update["temp"] = cw.get_temperature()
+        cw_update["sky_ir_temperature"] = cw.get_sky_ir_temperature()
+        cw_update["ir_sensor_temperature"] = cw.get_ir_sensor_temperature()
+        cw_update["sky_temperature"] = cw.get_sky_temperature()
+        cw_update["ambient_temperature"] = cw.get_temperature()
         cw_update["wind_speed"] = cw.get_wind_speed()
-        cw_update["rel_humidity"] = cw.get_rel_humidity()
-        cw_update["rain_freq"] = cw.get_rain_frequency()
-        cw_update["ambient_light_rel"] = cw.get_relative_ambient_light()
-        # cw_update["ambient_light_max_r"] = cw.constants["ldr_max_resistance"]
-        # cw_update["ambient_light_r"] = cw.get_ambient_light()
+        cw_update["relative_humidity"] = cw.get_rel_humidity()
+        cw_update["rain_frequency"] = cw.get_rain_frequency()
+        cw_update["relative_ambient_light"] = cw.get_relative_ambient_light()
 
         msg = json.dumps(cw_update)
 
