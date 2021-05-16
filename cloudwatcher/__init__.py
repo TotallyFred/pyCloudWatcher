@@ -12,6 +12,7 @@ import serial
 import time
 import math
 from enum import Enum
+from dataclasses import dataclass
 
 
 def _default_progress_tracker(
@@ -45,13 +46,45 @@ class Anemometer(Enum):
     gray = 1
 
 
+@dataclass
+class CWAnalogCache:
+    zener_voltage: int
+    ldr_voltage: int
+    rain_sensor_temp: int
+
+
+@dataclass
+class CWConstants:
+    zener_voltage: float
+    ldr_max_resistance: float
+    ldr_pull_up_resistance: float
+    rain_beta: float
+    rain_res_at_25: float
+    rain_pull_up_resistance: float
+
+
+@dataclass
+class SkyTemperatureModel:
+    K1: float
+    K2: float
+    K3: float
+    K4: float
+    K5: float
+    K6: float
+    K7: float
+
+
+default_sky_temperature_model = SkyTemperatureModel(100, 0, 0, 0, 0, 0, 0)
+
+
 class CloudWatcher:
     serial: serial.Serial
     errors: int
-    analog_cache: Dict[str, int]
+    analog_cache: CWAnalogCache
     analog_cache_lifetime_ms: int
     analog_cache_timestamp: float  # The actual format of a timestamp
-    constants: Optional[Dict[str, float]]
+    constants: CWConstants
+    constants_timestamp: float
 
     def __validate_handshake(self, response: bytes) -> None:
         assert (
@@ -113,8 +146,18 @@ class CloudWatcher:
             xonxoff=False,
             timeout=2,
         )
-        self.constants = None
-        self.analog_cache = {}
+        self.constants = CWConstants(
+            zener_voltage=0,
+            ldr_max_resistance=0,
+            ldr_pull_up_resistance=0,
+            rain_beta=0,
+            rain_res_at_25=0,
+            rain_pull_up_resistance=0,
+        )
+        self.constants_timestamp = 0
+        self.analog_cache = CWAnalogCache(
+            zener_voltage=0, ldr_voltage=0, rain_sensor_temp=0
+        )
         self.analog_cache_lifetime_ms = cache_lifetime_ms
         self.analog_cache_timestamp = 0
 
@@ -352,7 +395,7 @@ class CloudWatcher:
         # If the loop ended, CW is still in upgrade mode. This means the upgrade failed. Troubleshoot.
         raise CloudWatcherException("Upgrade failed - stuck in upgrade mode")
 
-    def get_analog_values(self) -> Dict[str, int]:
+    def get_analog_values(self) -> CWAnalogCache:
         """
         Reads the zener voltage, light detector voltage and rain sensor temperature DACs.
         Only 3 values as per Part 2 (Addendum)
@@ -365,20 +408,16 @@ class CloudWatcher:
         ldr_voltage = self.__extract_int(values[1], b"!4")
         rain_sensor_temp = self.__extract_int(values[2], b"!5")
 
-        return {
-            "zener_voltage": zener_voltage,
-            "ldr_voltage": ldr_voltage,
-            "rain_sensor_temp": rain_sensor_temp,
-        }
+        return CWAnalogCache(
+            zener_voltage=zener_voltage,
+            ldr_voltage=ldr_voltage,
+            rain_sensor_temp=rain_sensor_temp,
+        )
 
     def _update_analog_value_cache(self, force: bool = False) -> None:
         now = time.time()
 
-        if (
-            force
-            or (len(self.analog_cache) == 0)
-            or (self.analog_cache_timestamp - now) > self.analog_cache_lifetime_ms
-        ):
+        if force or (self.analog_cache_timestamp - now) > self.analog_cache_lifetime_ms:
             self.analog_cache = self.get_analog_values()
 
     @property
@@ -389,7 +428,7 @@ class CloudWatcher:
         :return: an integer in [0,1023]
         """
         self._update_analog_value_cache()
-        return self.analog_cache["zener_voltage"]
+        return self.analog_cache.zener_voltage
 
     @property
     def raw_ldr_voltage(self) -> int:
@@ -399,7 +438,7 @@ class CloudWatcher:
         :return: an integer in [0,1023]
         """
         self._update_analog_value_cache()
-        return self.analog_cache["ldr_voltage"]
+        return self.analog_cache.ldr_voltage
 
     @property
     def raw_rain_sensor_temp(self) -> int:
@@ -409,7 +448,7 @@ class CloudWatcher:
         :return: an integer in [0,1023]
         """
         self._update_analog_value_cache()
-        return self.analog_cache["rain_sensor_temp"]
+        return self.analog_cache.rain_sensor_temp
 
     def get_capacitive_rain_sensor_temp(
         self, rain_sensor_temp: Optional[int] = None
@@ -474,7 +513,9 @@ class CloudWatcher:
         :ldr_voltage: the LDR voltage. If None, the value is fetched from the CloudWatcher
         :returns: a float in [0,1] that represents the LDR resistance ratio to its maximum value and reflects ambient light. 0: very dark; 1: very bright
         """
-        return round(1 - self.get_ambient_light() / self.ldr_max_resistance, 2)
+        return round(
+            1 - self.get_ambient_light(ldr_voltage) / self.ldr_max_resistance, 2
+        )
 
     def get_internal_errors(self) -> Dict[str, int]:
         """
@@ -582,6 +623,32 @@ class CloudWatcher:
 
         return round(sky_ir_temp / 100, 2)
 
+    def get_sky_temperature(
+        self, model: SkyTemperatureModel = default_sky_temperature_model
+    ) -> float:
+        Ta = self.get_temperature()
+        if abs((model.K2 / 10 - Ta)) < 1:
+            T67 = (
+                math.copysign(1, model.K6)
+                * math.copysign(1, Ta - model.K2 / 10)
+                * abs((model.K2 / 10 - Ta))
+            )
+        else:
+            T67 = (
+                model.K6
+                / 10
+                * math.copysign(1, Ta - model.K2 / 10)
+                * (math.log(abs((model.K2 / 10 - Ta))) / math.log(10) + model.K7 / 100)
+            )
+
+        Td = (
+            (model.K1 / 100) * (Ta - model.K2 / 10)
+            + (model.K3 / 100) * pow(math.exp(model.K4 / 1000 * Ta), model.K5 / 100)
+            + T67
+        )
+
+        return Td
+
     def get_ir_sensor_temperature(self) -> float:
         """
         Return the infrared sensor temperature in Celsius.
@@ -593,7 +660,7 @@ class CloudWatcher:
 
         return round(ir_sensor_temp / 100, 2)
 
-    def get_constants(self) -> Dict[str, int]:
+    def get_constants(self) -> CWConstants:
         """
         Returns electrical constants.
         From Part 2 (addendum)
@@ -612,48 +679,48 @@ class CloudWatcher:
         rain_res_at_25 = (256 * v[9] + v[10]) / 10
         rain_pull_up_resistance = (256 * v[11] + v[12]) / 10
 
-        return {
-            "zener_voltage": zener_voltage,
-            "ldr_max_resistance": ldr_max_resistance,
-            "ldr_pull_up_resistance": ldr_pull_up_resistance,
-            "rain_beta": rain_beta,
-            "rain_res_at_25": rain_res_at_25,
-            "rain_pull_up_resistance": rain_pull_up_resistance,
-        }
+        return CWConstants(
+            zener_voltage=zener_voltage,
+            ldr_max_resistance=ldr_max_resistance,
+            ldr_pull_up_resistance=ldr_pull_up_resistance,
+            rain_beta=rain_beta,
+            rain_res_at_25=rain_res_at_25,
+            rain_pull_up_resistance=rain_pull_up_resistance,
+        )
 
     def _update_constants_cache(self) -> None:
-        if self.constants is None:
+        if self.constants_timestamp == 0:
             self.constants = self.get_constants()
 
     @property
     def zener_voltage(self) -> float:
         self._update_constants_cache()
-        return self.constants["zener_voltage"]
+        return self.constants.zener_voltage
 
     @property
     def ldr_max_resistance(self) -> float:
         self._update_constants_cache()
-        return self.constants["ldr_max_resistance"]
+        return self.constants.ldr_max_resistance
 
     @property
     def ldr_pull_up_resistance(self) -> float:
         self._update_constants_cache()
-        return self.constants["ldr_pull_up_resistance"]
+        return self.constants.ldr_pull_up_resistance
 
     @property
     def rain_beta(self) -> float:
         self._update_constants_cache()
-        return self.constants["rain_beta"]
+        return self.constants.rain_beta
 
     @property
     def rain_res_at_25(self) -> float:
         self._update_constants_cache()
-        return self.constants["rain_res_at_25"]
+        return self.constants.rain_res_at_25
 
     @property
     def rain_pull_up_resistance(self) -> float:
         self._update_constants_cache()
-        return self.constants["rain_pull_up_resistance"]
+        return self.constants.rain_pull_up_resistance
 
     def get_wind_sensor_presence(self) -> bool:
         """
