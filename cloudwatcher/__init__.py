@@ -49,6 +49,8 @@ class CloudWatcher:
     serial: serial.Serial
     errors: int
     analog_cache: Dict[str, int]
+    analog_cache_lifetime_ms: int
+    analog_cache_timestamp: float # The actual format of a timestamp
     constants: Dict[str, float]
 
     def __validate_handshake(self, response: bytes) -> None:
@@ -100,7 +102,7 @@ class CloudWatcher:
             raise
         return result[:-1]
 
-    def __init__(self, port: str):
+    def __init__(self, port: str, cache_lifetime_ms: int = 1000):
         self.errors = 0
         self.serial = serial.Serial(
             port=port,
@@ -113,6 +115,7 @@ class CloudWatcher:
         )
         self.constants = {}
         self.analog_cache = {}
+        self.analog_cache_lifetime_ms = cache_lifetime_ms
         self.analog_cache_timestamp = 0
 
     def initialize(self):
@@ -377,7 +380,7 @@ class CloudWatcher:
         if (
             force
             or (len(self.analog_cache) == 0)
-            or (self.analog_cache_timestamp - now) > 1000
+            or (self.analog_cache_timestamp - now) > self.analog_cache_lifetime_ms
         ):
             self.analog_cache = self.get_analog_values()
 
