@@ -43,7 +43,7 @@ def main():
 
     try:
         cw.upgrade(args.firmware.read())
-    except ValueError as upgrade_issue:
+    except cloudwatcher.CloudWatcherException as upgrade_issue:
         print(f"\n\nUpgrade failed: {upgrade_issue}")
         exit()
     except:
