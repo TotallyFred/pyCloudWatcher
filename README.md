@@ -14,3 +14,5 @@ Particularly, the protocol description is in the section called "Information for
 I can only recommend LunaticoAstro. Their staff is super friendly and responsive; even for technical questions around the CloudWatcher serial protocol (yes, they do support the hardcore stuff).
 
 I will likely purchase their Pocket CW as it supports the same API as the stationary CloudWatcher. If you happen to have a PocketCW to test with, please report feedback.
+
+Please note: I do not have a CW unit with the capacitive rain sensor. Mine has the hydreon. I can't test anything around these parameters.
