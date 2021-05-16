@@ -631,6 +631,8 @@ class CloudWatcher:
         self, model: SkyTemperatureModel = default_sky_temperature_model
     ) -> float:
         Ta = self.get_temperature()
+        Ts = self.get_sky_ir_temperature()
+
         if abs((model.K2 / 10 - Ta)) < 1:
             T67 = (
                 math.copysign(1, model.K6)
@@ -647,11 +649,11 @@ class CloudWatcher:
 
         Td = (
             (model.K1 / 100) * (Ta - model.K2 / 10)
-            + (model.K3 / 100) * pow(math.exp(model.K4 / 1000 * Ta), model.K5 / 100)
+            + (model.K3 / 100) * pow(math.exp(Ta * model.K4 / 1000), model.K5 / 100)
             + T67
         )
 
-        return round(Td, 2)
+        return round(Ts-Td, 2)
 
     def get_ir_sensor_temperature(self) -> float:
         """
