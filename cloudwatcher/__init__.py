@@ -207,7 +207,13 @@ class CloudWatcher:
         ):
             if status_tracker is not None:
                 status_tracker(
-                    preamble_count, indexf, indexl, firmware_len, unknown_count, done, upload
+                    preamble_count,
+                    indexf,
+                    indexl,
+                    firmware_len,
+                    unknown_count,
+                    done,
+                    upload,
                 )
 
         if isinstance(firmware, str):
@@ -245,7 +251,7 @@ class CloudWatcher:
             if msg == b"":
                 # Timeout. Abort upgrade
                 raise ValueError("Upgrade failed - timeout before transfer")
-            elif msg == b"c" or msg == b'\xff':
+            elif msg == b"c" or msg == b"\xff":
                 # 0xFF may occur after a B!O!O!T! -triggered reboot. Not on power-on. Funny.
                 preamble_count += 1
             else:
@@ -274,7 +280,7 @@ class CloudWatcher:
             if msg == b"":
                 # Timeout. End transfer
                 raise ValueError("Upgrade failed - timeout during transfer")
-            elif msg == b"c" or msg == b'\xff':
+            elif msg == b"c" or msg == b"\xff":
                 # Absorb excess "c" that may occur after sending "d". 0xFF occur after sending "d" in B!O!O!T! triggered sequences but not on power-on.
                 preamble_count += 1
             elif msg == b"0":
