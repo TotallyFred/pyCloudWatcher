@@ -5,6 +5,7 @@ from io import RawIOBase
 import cloudwatcher
 import time
 
+
 def main():
     parser = argparse.ArgumentParser(description="Upgrade CloudWatcher firmware.")
     parser.add_argument(
