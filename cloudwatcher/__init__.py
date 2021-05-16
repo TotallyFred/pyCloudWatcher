@@ -51,7 +51,7 @@ class CloudWatcher:
     analog_cache: Dict[str, int]
     analog_cache_lifetime_ms: int
     analog_cache_timestamp: float  # The actual format of a timestamp
-    constants: Dict[str, float]
+    constants: Optional[Dict[str, float]]
 
     def __validate_handshake(self, response: bytes) -> None:
         assert (
@@ -113,7 +113,7 @@ class CloudWatcher:
             xonxoff=False,
             timeout=2,
         )
-        self.constants = {}
+        self.constants = None
         self.analog_cache = {}
         self.analog_cache_lifetime_ms = cache_lifetime_ms
         self.analog_cache_timestamp = 0
