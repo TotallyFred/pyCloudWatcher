@@ -20,10 +20,9 @@ Please note: I do not have a CW unit with the capacitive rain sensor. Mine has t
 ## API Documentation
 Once you cloned the repository, install the project with `make install`.
 
-The python API can be used by simply by importing the main module:
-`import cloudwatcher`
+The python API can be used by simply by importing the main module: `import cloudwatcher`. You will find an example use case of the library in `cwmqtt.py`; a sample script that reads data from a CloudWatcher and publishes it via MQTT.
 
-You will find an example use case of the library in `cwmqtt.py`; a sample script that reads data from a CloudWatcher and publishes it via MQTT. Each API call is documented within the source code of this project.
+Each API call is documented within the source code of this project. More precisely in `cloudwatcher/__init__.py`.
 
 ## Upgrade utility
 `cwupgrade.py` upgrades the microcode of your CloudWatcher. Check out `cwupgrade.py --help` for instructions. It is rather simple.
