@@ -17,3 +17,13 @@ I will likely purchase their Pocket CW as it supports the same API as the statio
 
 Please note: I do not have a CW unit with the capacitive rain sensor. Mine has the hydreon. I can't test anything around these sensors and related parameters.
 
+## API Documentation
+Once you cloned the repository, install the project with `make install`.
+
+The python API can be used by simply by importing the main module:
+`import cloudwatcher`
+
+You will find an example use case of the library in `cwmqtt.py`; a sample script that reads data from a CloudWatcher and publishes it via MQTT. Each API call is documented within the source code of this project.
+
+## Upgrade utility
+`cwupgrade.py` upgrades the microcode of your CloudWatcher. Check out `cwupgrade.py --help` for instructions. It is rather simple.
