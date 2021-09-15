@@ -1,5 +1,3 @@
 paho-mqtt
 wheel
 setuptools
-
-
